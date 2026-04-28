@@ -30,10 +30,15 @@ type pullRunner struct {
 	engine   artifactDecrypter
 	manifest manifest.ManifestManager
 	sshDir   string
+	pwReader passwordReader
+	sc       *bufio.Scanner
 }
 
 func (r *pullRunner) run() error {
-	sc := bufio.NewScanner(r.in)
+	if r.sc == nil {
+		r.sc = bufio.NewScanner(r.in)
+	}
+	sc := r.sc
 
 	prompt := func(label string) (string, error) {
 		fmt.Fprintf(r.out, "%s", label)
@@ -56,7 +61,7 @@ func (r *pullRunner) run() error {
 	}
 
 	// 2. Prompt for encryption password.
-	password, err := prompt("Encryption password: ")
+	password, err := r.pwReader(r.out, "Encryption password: ")
 	if err != nil {
 		return err
 	}
@@ -128,7 +133,7 @@ func (r *pullRunner) run() error {
 			}
 			switch strings.ToLower(ans) {
 			case "r":
-				password, err = prompt("Encryption password: ")
+				password, err = r.pwReader(r.out, "Encryption password: ")
 				if err != nil {
 					return err
 				}
@@ -198,6 +203,7 @@ var pullCmd = &cobra.Command{
 			engine:   crypto.NewAESEngine(),
 			manifest: manifest.NewManifestManager(r2Client),
 			sshDir:   sshDir,
+			pwReader: readPassword,
 		}
 		if err := runner.run(); err != nil {
 			fmt.Fprintln(os.Stderr, err)

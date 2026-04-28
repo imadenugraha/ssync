@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -81,14 +82,18 @@ func (m *mockR2ForPull) Download(key string) ([]byte, error) {
 
 func newPullRunner(input string, r2c r2.R2Client, dec artifactDecrypter, mm *mockManifestManager, sshDir string) (*pullRunner, *bytes.Buffer) {
 	out := &bytes.Buffer{}
+	in := strings.NewReader(input)
+	inSc := bufio.NewScanner(in)
 	return &pullRunner{
-		in:       strings.NewReader(input),
+		in:       in,
 		out:      out,
 		store:    &mockCredStore{},
 		r2:       r2c,
 		engine:   dec,
 		manifest: mm,
 		sshDir:   sshDir,
+		pwReader: readerPasswordReader(inSc),
+		sc:       inSc,
 	}, out
 }
 
