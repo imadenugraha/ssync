@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/xml"
 	"fmt"
@@ -184,20 +185,22 @@ func runPush(t *testing.T, r2Client r2.R2Client, sshDir, password string, inputL
 
 	// Build input: "Y\n<password>\n" (push all, then password)
 	input := strings.Join(inputLines, "\n") + "\n"
+	in := strings.NewReader(input)
+	inSc := bufio.NewScanner(in)
 
+	var outBuf bytes.Buffer
 	runner := &pushRunner{
-		in:       strings.NewReader(input),
-		out:      &bytes.Buffer{},
+		in:       in,
+		out:      &outBuf,
 		r2:       r2Client,
 		engine:   engine,
 		manifest: manifestMgr,
 		backup:   backupMgr,
 		scanner:  scanner.New(),
 		sshDir:   sshDir,
+		pwReader: readerPasswordReader(inSc),
+		sc:       inSc,
 	}
-
-	var outBuf bytes.Buffer
-	runner.out = &outBuf
 
 	err := runner.run()
 	return outBuf.String(), err
@@ -211,17 +214,19 @@ func runPull(t *testing.T, r2Client r2.R2Client, sshDir, password string) (strin
 	engine := crypto.NewAESEngine()
 	manifestMgr := manifest.NewManifestManager(r2Client)
 
+	in := strings.NewReader(password + "\n")
+	inSc := bufio.NewScanner(in)
+	var outBuf bytes.Buffer
 	runner := &pullRunner{
-		in:       strings.NewReader(password + "\n"),
-		out:      &bytes.Buffer{},
+		in:       in,
+		out:      &outBuf,
 		r2:       r2Client,
 		engine:   engine,
 		manifest: manifestMgr,
 		sshDir:   sshDir,
+		pwReader: readerPasswordReader(inSc),
+		sc:       inSc,
 	}
-
-	var outBuf bytes.Buffer
-	runner.out = &outBuf
 
 	err := runner.run()
 	return outBuf.String(), err
@@ -377,9 +382,11 @@ func TestIntegration_ConflictDetectionWorksEndToEnd(t *testing.T) {
 	engine := crypto.NewAESEngine()
 	backupMgr := backup.NewManager(r2Client)
 
+	conflictIn := strings.NewReader(strings.Join(inputLines, "\n") + "\n")
+	conflictInSc := bufio.NewScanner(conflictIn)
 	var outBuf bytes.Buffer
 	runner := &pushRunner{
-		in:       strings.NewReader(strings.Join(inputLines, "\n") + "\n"),
+		in:       conflictIn,
 		out:      &outBuf,
 		r2:       r2Client,
 		engine:   engine,
@@ -388,6 +395,8 @@ func TestIntegration_ConflictDetectionWorksEndToEnd(t *testing.T) {
 		scanner:  scanner.New(),
 		sshDir:   srcDir,
 		force:    false,
+		pwReader: readerPasswordReader(conflictInSc),
+		sc:       conflictInSc,
 	}
 
 	runErr := runner.run()
@@ -436,14 +445,18 @@ func TestIntegration_PullWithWrongPasswordFails(t *testing.T) {
 	engine := crypto.NewAESEngine()
 	manifestMgr := manifest.NewManifestManager(r2Client)
 
+	wrongIn := strings.NewReader("wrongpassword123\nq\n")
+	wrongInSc := bufio.NewScanner(wrongIn)
 	var outBuf bytes.Buffer
 	runner := &pullRunner{
-		in:       strings.NewReader("wrongpassword123\nq\n"),
+		in:       wrongIn,
 		out:      &outBuf,
 		r2:       r2Client,
 		engine:   engine,
 		manifest: manifestMgr,
 		sshDir:   destDir,
+		pwReader: readerPasswordReader(wrongInSc),
+		sc:       wrongInSc,
 	}
 
 	pullErr := runner.run()
