@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -12,12 +14,28 @@ var (
 	force  bool
 )
 
+// expandPath replaces a leading ~ with the user's home directory.
+func expandPath(path string) string {
+	if !strings.HasPrefix(path, "~") {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	return filepath.Join(home, path[1:])
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "ssync",
 	Short: "Securely sync SSH artifacts to Cloudflare R2",
 	Long: `ssync encrypts your SSH private keys, public keys, config files, and
 known_hosts before uploading them to Cloudflare R2 object storage.
 All encryption is performed client-side using AES-256-GCM.`,
+	// Expand ~ in --ssh-dir before any subcommand runs.
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		sshDir = expandPath(sshDir)
+	},
 }
 
 // Execute runs the root command.
