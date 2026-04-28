@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -78,13 +79,17 @@ func (m *mockRecoverEngine) DecryptWithMetadata(blob []byte, password string) (c
 
 func newRecoverRunner(input string, r2c *mockR2Client, eng *mockRecoverEngine, mm *mockManifestManager, bm *mockBackupManagerWithVerify) (*recoverRunner, *bytes.Buffer) {
 	out := &bytes.Buffer{}
+	in := strings.NewReader(input)
+	inSc := bufio.NewScanner(in)
 	return &recoverRunner{
-		in:       strings.NewReader(input),
+		in:       in,
 		out:      out,
 		r2:       r2c,
 		engine:   eng,
 		manifest: mm,
 		backup:   bm,
+		pwReader: readerPasswordReader(inSc),
+		sc:       inSc,
 	}, out
 }
 

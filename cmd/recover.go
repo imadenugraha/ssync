@@ -29,10 +29,15 @@ type recoverRunner struct {
 	engine   recoverEngine
 	manifest manifest.ManifestManager
 	backup   backup.BackupCodeManager
+	pwReader passwordReader
+	sc       *bufio.Scanner
 }
 
 func (r *recoverRunner) run() error {
-	sc := bufio.NewScanner(r.in)
+	if r.sc == nil {
+		r.sc = bufio.NewScanner(r.in)
+	}
+	sc := r.sc
 
 	prompt := func(label string) (string, error) {
 		fmt.Fprintf(r.out, "%s", label)
@@ -79,7 +84,7 @@ func (r *recoverRunner) run() error {
 	}
 
 	// 3. Prompt for OLD encryption password (needed to decrypt existing artifacts).
-	oldPassword, err := prompt("Current encryption password: ")
+	oldPassword, err := r.pwReader(r.out, "Current encryption password: ")
 	if err != nil {
 		return err
 	}
@@ -169,10 +174,10 @@ func (r *recoverRunner) run() error {
 	return nil
 }
 
-// promptNewPassword prompts for a new password, re-prompting if too short.
-func (r *recoverRunner) promptNewPassword(prompt func(string) (string, error)) (string, error) {
+// promptNewPassword prompts for a new password without echoing, re-prompting if too short.
+func (r *recoverRunner) promptNewPassword(_ func(string) (string, error)) (string, error) {
 	for {
-		pw, err := prompt("New encryption password (≥12 chars): ")
+		pw, err := r.pwReader(r.out, "New encryption password (≥12 chars): ")
 		if err != nil {
 			return "", err
 		}
@@ -215,6 +220,7 @@ var recoverCmd = &cobra.Command{
 			engine:   crypto.NewAESEngine(),
 			manifest: manifest.NewManifestManager(r2Client),
 			backup:   backup.NewManager(r2Client),
+			pwReader: readPassword,
 		}
 		if err := runner.run(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
