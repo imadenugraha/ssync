@@ -19,7 +19,7 @@ func TestScan_DiscoversAllFileTypes(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "id_ed25519.pub"), 0644)
 	// Config
 	writeFile(t, filepath.Join(dir, "config"), 0644)
-	// Known hosts
+	// known_hosts should NOT be discovered
 	writeFile(t, filepath.Join(dir, "known_hosts"), 0644)
 
 	s := New()
@@ -29,11 +29,14 @@ func TestScan_DiscoversAllFileTypes(t *testing.T) {
 	}
 
 	names := artifactNames(artifacts)
-	expected := []string{"id_ed25519", "id_rsa.pem", "id_ed25519.pub", "config", "known_hosts"}
+	expected := []string{"id_ed25519", "id_rsa.pem", "id_ed25519.pub", "config"}
 	for _, want := range expected {
 		if !contains(names, want) {
 			t.Errorf("expected artifact %q not found; got %v", want, names)
 		}
+	}
+	if contains(names, "known_hosts") {
+		t.Errorf("known_hosts should be excluded from push artifacts")
 	}
 	if len(artifacts) != len(expected) {
 		t.Errorf("expected %d artifacts, got %d: %v", len(expected), len(artifacts), names)

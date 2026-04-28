@@ -82,8 +82,8 @@ func isRecognized(name string, fi os.FileInfo) bool {
 		return true
 	}
 
-	// Config and known_hosts (exact names)
-	if name == "config" || name == "known_hosts" {
+	// Config only (exact name) — known_hosts is excluded from push
+	if name == "config" {
 		return true
 	}
 
