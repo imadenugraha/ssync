@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -154,8 +155,10 @@ func makeTempArtifact(t *testing.T, name, content string) internal.SSHArtifact {
 
 func newPushRunner(input string, sc *mockScanner, r2c *mockR2Client, enc *mockEncrypter, mm *mockManifestManager, bm *mockBackupManager, force bool) (*pushRunner, *bytes.Buffer) {
 	out := &bytes.Buffer{}
+	in := strings.NewReader(input)
+	inSc := bufio.NewScanner(in)
 	return &pushRunner{
-		in:       strings.NewReader(input),
+		in:       in,
 		out:      out,
 		store:    &mockCredStore{},
 		scanner:  sc,
@@ -165,6 +168,8 @@ func newPushRunner(input string, sc *mockScanner, r2c *mockR2Client, enc *mockEn
 		backup:   bm,
 		force:    force,
 		sshDir:   "/fake/.ssh",
+		pwReader: readerPasswordReader(inSc),
+		sc:       inSc,
 	}, out
 }
 

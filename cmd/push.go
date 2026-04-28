@@ -39,10 +39,15 @@ type pushRunner struct {
 	backup   backup.BackupCodeManager
 	force    bool
 	sshDir   string
+	pwReader passwordReader
+	sc       *bufio.Scanner // shared scanner; nil means create from r.in
 }
 
 func (r *pushRunner) run() error {
-	sc := bufio.NewScanner(r.in)
+	if r.sc == nil {
+		r.sc = bufio.NewScanner(r.in)
+	}
+	sc := r.sc
 
 	prompt := func(label string) (string, error) {
 		fmt.Fprintf(r.out, "%s", label)
@@ -263,10 +268,10 @@ func (r *pushRunner) selectArtifacts(artifacts []internal.SSHArtifact, prompt fu
 	return selected, nil
 }
 
-// promptPassword prompts for the encryption password, re-prompting if too short.
-func (r *pushRunner) promptPassword(prompt func(string) (string, error)) (string, error) {
+// promptPassword prompts for the encryption password without echoing, re-prompting if too short.
+func (r *pushRunner) promptPassword(_ func(string) (string, error)) (string, error) {
 	for {
-		pw, err := prompt("Encryption password (≥12 chars): ")
+		pw, err := r.pwReader(r.out, "Encryption password (≥12 chars): ")
 		if err != nil {
 			return "", err
 		}
@@ -313,6 +318,7 @@ var pushCmd = &cobra.Command{
 			backup:   backup.NewManager(r2Client),
 			force:    force,
 			sshDir:   sshDir,
+			pwReader: readPassword,
 		}
 		if err := runner.run(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
