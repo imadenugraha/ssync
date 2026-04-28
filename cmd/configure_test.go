@@ -5,34 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
-
-	"github.com/user/ssync/internal"
 )
-
-// mockCredStore is a test double for credentials.CredentialStore.
-type mockCredStore struct {
-	saved   *internal.R2Credentials
-	saveErr error
-	loadErr error
-}
-
-func (m *mockCredStore) Save(creds internal.R2Credentials) error {
-	if m.saveErr != nil {
-		return m.saveErr
-	}
-	m.saved = &creds
-	return nil
-}
-
-func (m *mockCredStore) Load() (internal.R2Credentials, error) {
-	if m.loadErr != nil {
-		return internal.R2Credentials{}, m.loadErr
-	}
-	if m.saved != nil {
-		return *m.saved, nil
-	}
-	return internal.R2Credentials{}, nil
-}
 
 func newRunner(input string, store *mockCredStore) (*configureRunner, *bytes.Buffer) {
 	out := &bytes.Buffer{}
