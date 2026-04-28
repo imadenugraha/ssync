@@ -1,11 +1,9 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/user/ssync/internal/backup"
@@ -23,24 +21,12 @@ type regenRunner struct {
 	engine   artifactDecrypter
 	manifest manifest.ManifestManager
 	backup   backup.BackupCodeManager
+	pwReader passwordReader
 }
 
 func (r *regenRunner) run() error {
-	sc := bufio.NewScanner(r.in)
-
-	prompt := func(label string) (string, error) {
-		fmt.Fprintf(r.out, "%s", label)
-		if !sc.Scan() {
-			if err := sc.Err(); err != nil {
-				return "", err
-			}
-			return "", fmt.Errorf("unexpected end of input")
-		}
-		return strings.TrimSpace(sc.Text()), nil
-	}
-
-	// 1. Prompt for current encryption password.
-	password, err := prompt("Current encryption password: ")
+	// 1. Prompt for current encryption password (hidden).
+	password, err := r.pwReader(r.out, "Current encryption password: ")
 	if err != nil {
 		return err
 	}
@@ -121,6 +107,7 @@ var regenerateBackupCodesCmd = &cobra.Command{
 			engine:   crypto.NewAESEngine(),
 			manifest: manifest.NewManifestManager(r2Client),
 			backup:   backup.NewManager(r2Client),
+			pwReader: readPassword,
 		}
 		if err := runner.run(); err != nil {
 			fmt.Fprintln(os.Stderr, err)

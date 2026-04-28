@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"strings"
@@ -12,13 +13,16 @@ import (
 // newRegenRunner constructs a regenRunner with a string reader for input and captures output.
 func newRegenRunner(input string, r2c *mockR2ForPull, dec *mockDecrypter, mm *mockManifestManager, bm *mockBackupManager) (*regenRunner, *bytes.Buffer) {
 	out := &bytes.Buffer{}
+	in := strings.NewReader(input)
+	inSc := bufio.NewScanner(in)
 	return &regenRunner{
-		in:       strings.NewReader(input),
+		in:       in,
 		out:      out,
 		r2:       r2c,
 		engine:   dec,
 		manifest: mm,
 		backup:   bm,
+		pwReader: readerPasswordReader(inSc),
 	}, out
 }
 
