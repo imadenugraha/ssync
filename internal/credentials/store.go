@@ -15,6 +15,7 @@ import (
 	"github.com/user/ssync/internal"
 	"github.com/user/ssync/internal/crypto"
 	"github.com/zalando/go-keyring"
+	"golang.org/x/term"
 )
 
 const (
@@ -212,9 +213,20 @@ func (s *fileCredentialStore) resolvePassphrase(forSave bool) (string, error) {
 	return passphrase, nil
 }
 
-// stdinPassReader reads a passphrase from stdin.
+// stdinPassReader reads a passphrase from the terminal without echoing.
+// Falls back to plain stdin reading when not a terminal.
 func stdinPassReader(prompt string) (string, error) {
 	fmt.Print(prompt)
+	fd := int(os.Stdin.Fd())
+	if term.IsTerminal(fd) {
+		pw, err := term.ReadPassword(fd)
+		fmt.Println() // move to next line
+		if err != nil {
+			return "", err
+		}
+		return string(pw), nil
+	}
+	// Non-terminal fallback.
 	reader := bufio.NewReader(os.Stdin)
 	line, err := reader.ReadString('\n')
 	if err != nil {
